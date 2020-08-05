@@ -29,15 +29,22 @@ class LSTMClassifier(nn.Module):
             hidden state.
         """
         batch_size = x.size(0)
-        x = x.long()
+        x = x.t()
+#         print(x.shape)
         embeds = self.embedding(x)
+#         print(embeds.shape)
         lstm_out, hidden = self.lstm(embeds, hidden)
+#         print(lstm_out.shape)
+#         lstm_out = lstm_out.contiguous().view(-1, self.hidden_dim)
+#         print(lstm_out.shape)
         out = self.dropout(lstm_out)
-        out = self.fc(out)    
+        out = self.fc(out)
+#         print(out.shape)
         sig_out = self.sigmoid(out)
         sig_out = sig_out.view(batch_size, -1)
         sig_out = sig_out[:, -1]
-
+#         print(sig_out.shape)
+        
         return sig_out, hidden
 
     def init_hidden(self, batch_size, device):
@@ -49,3 +56,4 @@ class LSTMClassifier(nn.Module):
                       weight.new(self.n_layers, batch_size, self.hidden_dim).zero_().to(device))
 
         return hidden
+   
