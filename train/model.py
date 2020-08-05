@@ -39,3 +39,13 @@ class LSTMClassifier(nn.Module):
         sig_out = sig_out[:, -1]
 
         return sig_out, hidden
+
+    def init_hidden(self, batch_size):
+        """ Intialize the hidden state
+        """
+        weight = next(self.parameters()).data
+
+        hidden = (weight.new(self.n_layers, batch_size, self.hidden_dim).zero_().to(device),
+                      weight.new(self.n_layers, batch_size, self.hidden_dim).zero_().to(device))
+
+        return hidden
