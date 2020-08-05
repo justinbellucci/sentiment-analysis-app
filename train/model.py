@@ -40,7 +40,7 @@ class LSTMClassifier(nn.Module):
 
         return sig_out, hidden
 
-    def init_hidden(self, batch_size):
+    def init_hidden(self, batch_size, device):
         """ Intialize the hidden state
         """
         weight = next(self.parameters()).data
