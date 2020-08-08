@@ -8,7 +8,7 @@ class LSTMClassifier(nn.Module):
     """ LSTM based RNN to perform sentiment analysis
     
     """
-    def __init__(self, embedding_dim, hidden_dim, vocab_size, n_layers=1, drop_prob=0.5):
+    def __init__(self, embedding_dim, hidden_dim, vocab_size, n_layers=2):
         """ Initialize the model by setting up the various 
             layers.
         """
@@ -17,12 +17,13 @@ class LSTMClassifier(nn.Module):
         self.n_layers = n_layers
         self.hidden_dim = hidden_dim
         
-        self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
-        self.lstm = nn.LSTM(embedding_dim, hidden_dim, n_layers, dropout=drop_prob)
-        self.dropout = nn.Dropout(0.3)
+        self.embedding = nn.Embedding(vocab_size, embedding_dim)
+        self.lstm = nn.LSTM(embedding_dim, hidden_dim, n_layers)
+        
+        self.dropout = nn.Dropout(0.2)
+        
         self.fc = nn.Linear(in_features=hidden_dim, out_features=1)
         self.sigmoid = nn.Sigmoid()
-        self.word_dict = None
 
     def forward(self, x, hidden):
         """ Perform a forward pass of our model on some input and 
@@ -30,20 +31,14 @@ class LSTMClassifier(nn.Module):
         """
         batch_size = x.size(0)
         x = x.t()
-#         print(x.shape)
         embeds = self.embedding(x)
-#         print(embeds.shape)
         lstm_out, hidden = self.lstm(embeds, hidden)
-#         print(lstm_out.shape)
-#         lstm_out = lstm_out.contiguous().view(-1, self.hidden_dim)
-#         print(lstm_out.shape)
         out = self.dropout(lstm_out)
         out = self.fc(out)
-#         print(out.shape)
         sig_out = self.sigmoid(out)
+        
         sig_out = sig_out.view(batch_size, -1)
         sig_out = sig_out[:, -1]
-#         print(sig_out.shape)
         
         return sig_out, hidden
 
