@@ -57,3 +57,28 @@ def model_fn(model_dir):
     print("Done loading model.")
 
     return model
+
+# create PyTorch dataloaders
+def _get_train_data_loader(batch_size, training_dir):
+    """ Create PyTorch dataloader from training directory csv file
+        uploaded to S3. Previously concatenated with each row in dataset 
+        of form - label, length, review. 
+
+        Arguments:
+        - batch_size: (int) 
+        - training_dir: path to csv file in S3
+
+        Return:
+        - train_loader: PyTorch Dataloader
+    """
+    print("Creating dataloader...")
+
+    train_data = pd.read_csv(os.path.join(training_dir, "train.csv"), header=None, names=None)
+
+    train_y = torch.from_numpy(train_data[[0]].values).float().squeeze()
+    train_X = torch.from_numpy(train_data.drop([0], axis=1).values).long()
+
+    train_dataset = torch.utils.data.TensorDataset(train_X, train_y)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size)
+
+    return train_loader
