@@ -112,3 +112,73 @@ def train(model, batch_size, train_loader, epochs, optimizer, criterion, device)
             loss = criterion(out, batch_y)
             loss.backward()
             optimizer.step()
+
+if __name__ == '__main__':
+    
+    parser = argparse.ArgumentParser() # initialize argument parser object
+
+    # training parameters
+    parser.add_argument('--batch_size', type=int, default=512, metavar='N',
+                        help='Input batch size for training (default=512)')
+    parser.add_argument('--epochs', type=int, default=10, metavar='N',
+                        help='Number of epochs to train (default=10)')
+    parser.add_argument('--seed', type=int, default=1, metavar='S',
+                        help='Random seed (default=1)')
+
+    # model parameters
+    parser.add_argument('--embedding_dim', type=int, default=42, metavar='N',
+                        help='Size of word embeddings (default=42)')
+    parser.add_argument('--hidden_dim', type=int, default=100, metavar='N',
+                        help='Size of hidden dimension (default=100)')
+    parser.add_argument('--vocab_size', type=int, default=5000, metavar='N',
+                        help='Random seed (default=1)')
+
+    # required SageMaker parameters
+    parser.add_argument('--hosts', type=list, default=json.loads(os.environ['SM_HOSTS']))
+    parser.add_argument('--current-host', type=str, default=os.environ['SM_CURRENT_HOST'])
+    parser.add_argument('--model_dir', type=str, default=os.environ['SM_MODEL_DIR'])
+    parser.add_argument('--data_dir', type=str, default=os.environ['SM_CHANNEL_TRAINING'])
+    parser.add_argument('--num-gpus', type=int, default=os.environ['SM_NUM_GPUS'])
+
+    args = parser.parse_args()
+
+    # ---------------------------------------------------
+    # begin main program
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("Using {} to train...".format(device))
+
+    torch.manual_seed(args.seed)
+
+    # load in training data
+    train_loader = _get_train_data_loader(args.batch_size, args.data_dir)
+
+    # build the model
+    model = LSTMClassifier(args.embedding_dim, args.hidden_dim, args.vocab_size)
+
+    # load word dictionary
+    with open(os.path.join(args.data_dir, "word_dict.pkl"), "rb") as f:
+        model.word_dict = pickle.load(f)
+
+    # ------------ train the model --------------
+    optimizer = optim.Adam(model.parameters())
+    criterion = torch.nn.BCELoss()
+
+    train(model, args.batch_size, train_loader, args.epochs, optimizer, criterion, device)
+
+    # save the model hyperparameters
+    model_info_path = os.path.join(args.model_dir, 'model_info.pth')
+    with open(model_info_path, 'wb') as f:
+        model_info = {'embedding_dim': args.embedding_dim,
+                      'hidden_dim': args.hidden_dim,
+                      'vocab_size': args.vocab_size}
+        torch.save(model_info, f)
+    
+    # save the word dictionary
+    word_dict_path = os.path.join(args.model_dir, 'word_dict.pkl')
+    with open(word_dict_path, 'wb') as f:
+        pickle.dump(model.word_dict, f)
+
+    # save the model parameters
+    model_path = os.path.join(args.model_dir, 'model.pth')
+    with open(model_path, 'wb') as f:
+        torch.save(model.cpu().state_dict(), f)
