@@ -79,7 +79,7 @@ def _get_train_data_loader(batch_size, training_dir):
     train_X = torch.from_numpy(train_data.drop([0], axis=1).values).long()
 
     train_dataset = torch.utils.data.TensorDataset(train_X, train_y)
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, drop_last=True)
 
     return train_loader
 
@@ -96,8 +96,9 @@ def train(model, batch_size, train_loader, epochs, optimizer, criterion, device)
     """
     for e in range(epochs):
         model.train() # put model in training mode
+        total_loss = 0
         h = model.init_hidden(batch_size, device) # initialize hidden dimension parameters
-
+        
         for batch in train_loader:
             batch_X, batch_y = batch
 
@@ -112,7 +113,10 @@ def train(model, batch_size, train_loader, epochs, optimizer, criterion, device)
             loss = criterion(out, batch_y)
             loss.backward()
             optimizer.step()
-
+            
+            total_loss += loss.data.item()
+        print("Epoch: {}, BCELoss: {}".format(e+1, total_loss/len(train_loader)))
+        
 if __name__ == '__main__':
     
     parser = argparse.ArgumentParser() # initialize argument parser object
@@ -152,13 +156,16 @@ if __name__ == '__main__':
     # load in training data
     train_loader = _get_train_data_loader(args.batch_size, args.data_dir)
 
-    # build the model
-    model = LSTMClassifier(args.embedding_dim, args.hidden_dim, args.vocab_size)
+    # build the model and move to gpu or cpu
+    model = LSTMClassifier(args.embedding_dim, args.hidden_dim, args.vocab_size).to(device)
 
     # load word dictionary
     with open(os.path.join(args.data_dir, "word_dict.pkl"), "rb") as f:
         model.word_dict = pickle.load(f)
 
+    print("Model loaded with embedding_dim: {}, hidden_dim: {}, vocab_size: {}".format(args.embedding_dim,
+                                                                                       args.hidden_dim, 
+                                                                                       args.vocab_size))
     # ------------ train the model --------------
     optimizer = optim.Adam(model.parameters())
     criterion = torch.nn.BCELoss()
