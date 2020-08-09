@@ -82,3 +82,33 @@ def _get_train_data_loader(batch_size, training_dir):
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size)
 
     return train_loader
+
+# main training function
+def train(model, batch_size, train_loader, epochs, optimizer, criterion, device):
+    """ This is the main training method that is called by the training script.
+
+        Arguments:
+        - model: PyTorch model to train
+        - train_loader: PyTorch Dataloader
+        - epochs: 
+        - optimizer: loss function
+        - device: gpu or cpu
+    """
+    for e in range(epochs):
+        model.train() # put model in training mode
+        h = model.init_hidden(batch_size, device) # initialize hidden dimension parameters
+
+        for batch in train_loader:
+            batch_X, batch_y = batch
+
+            # move to GPU if available
+            batch_X = batch_X.to(device)
+            batch_y = batch_y.to(device)
+
+            h = tuple([each.data for each in h])
+
+            optimizer.zero_grad() # zero gradients
+            out, h = model.forward(batch_X, h)
+            loss = criterion(out, batch_y)
+            loss.backward()
+            optimizer.step()
