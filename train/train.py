@@ -11,6 +11,7 @@ import sagemaker_containers
 import pandas as pd
 import torch
 import torch.optim as optim
+import torch.nn as nn
 import torch.utils.data
 
 from model import LSTMClassifier
@@ -76,7 +77,7 @@ def _get_train_data_loader(batch_size, training_dir):
     train_data = pd.read_csv(os.path.join(training_dir, "train.csv"), header=None, names=None)
 
     train_y = torch.from_numpy(train_data[[0]].values).float().squeeze()
-    train_X = torch.from_numpy(train_data.drop([0], axis=1).values).long()
+    train_X = torch.from_numpy(train_data.drop([0,1], axis=1).values).long()
 
     train_dataset = torch.utils.data.TensorDataset(train_X, train_y)
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, drop_last=True)
@@ -97,7 +98,7 @@ def train(model, batch_size, train_loader, epochs, optimizer, criterion, device)
     for e in range(epochs):
         model.train() # put model in training mode
         total_loss = 0
-        h = model.init_hidden(batch_size, device) # initialize hidden dimension parameters
+        h = model.init_hidden(batch_size) # initialize hidden dimension parameters
         
         for batch in train_loader:
             batch_X, batch_y = batch
@@ -112,6 +113,7 @@ def train(model, batch_size, train_loader, epochs, optimizer, criterion, device)
             out, h = model.forward(batch_X, h)
             loss = criterion(out, batch_y)
             loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), 5)
             optimizer.step()
             
             total_loss += loss.data.item()
@@ -157,7 +159,7 @@ if __name__ == '__main__':
     train_loader = _get_train_data_loader(args.batch_size, args.data_dir)
 
     # build the model and move to gpu or cpu
-    model = LSTMClassifier(args.embedding_dim, args.hidden_dim, args.vocab_size).to(device)
+    model = LSTMClassifier(args.vocab_size, args.embedding_dim, args.hidden_dim).to(device)
 
     # load word dictionary
     with open(os.path.join(args.data_dir, "word_dict.pkl"), "rb") as f:
