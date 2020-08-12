@@ -19,46 +19,47 @@ class LSTMClassifier(nn.Module):
         self.n_layers = n_layers
         self.hidden_dim = hidden_dim
         
-        self.embedding = nn.Embedding(self.vocab_size, embedding_dim)
-        self.lstm = nn.LSTM(embedding_dim, hidden_dim, n_layers, batch_first=False)
+        self.embedding = nn.Embedding(self.vocab_size, embedding_dim, padding_idx=0)
+        self.lstm = nn.LSTM(embedding_dim, hidden_dim, n_layers)
         
-        self.dropout = nn.Dropout(0.2)
+#         self.dropout = nn.Dropout(0.2)
         
         self.fc = nn.Linear(in_features=hidden_dim, out_features=1)
         self.sigmoid = nn.Sigmoid()
 
-    def forward(self, x, hidden):
-        """ Perform a forward pass of our model on some input and 
-            hidden state.
-        """
-        batch_size = x.size(0)
-        x = x.t()[1:,:]                      # INPUT:  (seq_length, batch_size)
-#         print("Input shape: {}".format(x.shape))
-        embeds = self.embedding(x)        # (seq_length, batch_size, n_embed)
-#         print("Embed shape: {}".format(embeds.shape))
-        lstm_out, hidden = self.lstm(embeds, hidden)   # (seq_length, batch_size, n_hidden)
-#         print("lstm shape: {}".format(lstm_out.shape))
         
-        # stack up lstm outputs
-        lstm_out = lstm_out.contiguous().view(-1, self.hidden_dim) # (batch_size*seq_length, n_hidden)
-#         print("lstm stacked shape: {}".format(lstm_out.shape))
-        out = self.dropout(lstm_out)
-        out = self.fc(out)                # (batch_size*seq_length, n_output)
-        sig_out = self.sigmoid(out)       # (batch_size*seq_length, n_output)
-#         print("sig_out shape: {}".format(sig_out.shape))
-        sig_out = sig_out.view(batch_size, -1)    # (batch_size, seq_length*n_output)
-        sig_out = sig_out[:, -1]                  # (batch_size)
-#         print(sig_out.shape)
-        return sig_out, hidden
+    def forward(self, x):
+        
+        batch_size = x.size(0)
+        x = x.t()
+        reviews_lengths = x[0,:] # first row is the lenght of original review
+        reviews = x[1:,:] # second row to end is each review
+        
+        embeds = self.embedding(reviews)
+        lstm_out, _ = self.lstm(embeds)
+        # stack lstm layers before they go into fully connected layer
+        lstm_out = lstm_out.contiguous().view(-1, self.hidden_dim)
+        fc_out = self.fc(lstm_out)
 
-    def init_hidden(self, batch_size):
-        """ Intialize the hidden state
-        """
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        weight = next(self.parameters()).data
+        sig_out = self.sigmoid(fc_out)
+        # reshape sig_out (seq_length, batch_size, output_size)
+        sig_out = sig_out.view(-1, batch_size, 1) 
+        
+        # here we want to grab the value of the output which
+        # corresponds to the last word in the original sequence.
+        # then we grab all in the batch. ex: out = sig_out[165, (0,50)]
+        out = sig_out[reviews_lengths - 1, range(batch_size)]
+        
+        return out.squeeze() # squeeze dimensions
 
-        hidden = (weight.new(self.n_layers, batch_size, self.hidden_dim).zero_().to(device),
-                  weight.new(self.n_layers, batch_size, self.hidden_dim).zero_().to(device))
+#     def init_hidden(self, batch_size):
+#         """ Intialize the hidden state
+#         """
+#         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#         weight = next(self.parameters()).data
 
-        return hidden
+#         hidden = (weight.new(self.n_layers, batch_size, self.hidden_dim).zero_().to(device),
+#                   weight.new(self.n_layers, batch_size, self.hidden_dim).zero_().to(device))
+
+#         return hidden
    

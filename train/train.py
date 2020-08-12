@@ -80,7 +80,7 @@ def _get_train_data_loader(batch_size, training_dir):
     train_X = torch.from_numpy(train_data.drop([0], axis=1).values).long()
 
     train_dataset = torch.utils.data.TensorDataset(train_X, train_y)
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, drop_last=True)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, drop_last=False)
 
     return train_loader
 
@@ -98,7 +98,7 @@ def train(model, batch_size, train_loader, epochs, optimizer, criterion, device)
     for e in range(epochs):
         model.train() # put model in training mode
         total_loss = 0
-        h = model.init_hidden(batch_size) # initialize hidden dimension parameters
+#         h = model.init_hidden(batch_size) # initialize hidden dimension parameters
         
         for batch in train_loader:
             batch_X, batch_y = batch
@@ -107,10 +107,10 @@ def train(model, batch_size, train_loader, epochs, optimizer, criterion, device)
             batch_X = batch_X.to(device)
             batch_y = batch_y.to(device)
 
-            h = tuple([each.data for each in h])
+#             h = tuple([each.data for each in h])
 
             optimizer.zero_grad() # zero gradients
-            out, h = model.forward(batch_X, h)
+            out = model.forward(batch_X)
             loss = criterion(out, batch_y)
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), 5)
