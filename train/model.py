@@ -1,6 +1,6 @@
 # PROGRAMMER: Justin Bellucci 
 # DATE CREATED: 07_31_2020                                  
-# REVISED DATE: 
+# REVISED DATE: 12_23_2021
 
 import torch.nn as nn
 import torch
@@ -19,11 +19,9 @@ class LSTMClassifier(nn.Module):
         self.n_layers = n_layers
         self.hidden_dim = hidden_dim
         
-        self.embedding = nn.Embedding(self.vocab_size, embedding_dim, padding_idx=0)
+        self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
         self.lstm = nn.LSTM(embedding_dim, hidden_dim, n_layers)
-        
-#         self.dropout = nn.Dropout(0.2)
-        
+
         self.fc = nn.Linear(in_features=hidden_dim, out_features=1)
         self.sigmoid = nn.Sigmoid()
 
@@ -32,7 +30,7 @@ class LSTMClassifier(nn.Module):
         
         batch_size = x.size(0)
         x = x.t()
-        reviews_lengths = x[0,:] # first row is the lenght of original review
+        reviews_lengths = x[0,:] # first row is the length of original review
         reviews = x[1:,:] # second row to end is each review
         
         embeds = self.embedding(reviews)
@@ -52,14 +50,3 @@ class LSTMClassifier(nn.Module):
         
         return out.squeeze() # squeeze dimensions
 
-#     def init_hidden(self, batch_size):
-#         """ Intialize the hidden state
-#         """
-#         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#         weight = next(self.parameters()).data
-
-#         hidden = (weight.new(self.n_layers, batch_size, self.hidden_dim).zero_().to(device),
-#                   weight.new(self.n_layers, batch_size, self.hidden_dim).zero_().to(device))
-
-#         return hidden
-   
